@@ -409,13 +409,13 @@ function App(){
 
   useEffect(()=>{
     if(!authed)return;
-    setLoading(true);
-    setSyncMsg("Connecting...");
+    // Show dashboard immediately - never block on network
+    setLoading(false);
+    setSyncMsg("Syncing...");
     dbLoad().then(d=>{
       if(d){setData(d);setSyncMsg("Synced ✓");}
-      else{setSyncMsg("Offline — showing local data");}
-      setLoading(false);
-    });
+      else{setSyncMsg("Working offline");}
+    }).catch(()=>setSyncMsg("Working offline"));
   },[authed]);
 
   useEffect(()=>{
@@ -439,10 +439,7 @@ function App(){
 
   if(!authed)return <LoginScreen onLogin={()=>setAuthed(true)}/>;
 
-  if(loading)return <div style={{minHeight:"100vh",background:"#070d1a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
-    <div style={{width:48,height:48,borderRadius:14,background:"linear-gradient(135deg,#c9a96e,#8b5c2a)",display:"flex",alignItems:"center",justifyContent:"center",animation:"spin 1s linear infinite"}}><Icon d={IC.camera} size={24} color="#fff"/></div>
-    <p style={{color:"#475569",fontSize:14}}>Connecting to shared database...</p>
-  </div>;
+
 
   const addLead=l=>{const id=data.nextId;upd({...data,leads:[...data.leads,{...l,id,createdAt:ts()}],nextId:id+1});setModal(null);};
   const updateLead=u=>upd({...data,leads:data.leads.map(l=>l.id===u.id?u:l)});
