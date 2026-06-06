@@ -36,11 +36,15 @@ const sbHeaders = { "Content-Type": "application/json", "apikey": SUPA_KEY, "Aut
 
 async function dbLoad() {
   try {
-    const r = await fetch(`${SUPA_URL}/rest/v1/crm_data?id=eq.main&select=data`, { headers: sbHeaders });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const r = await fetch(`${SUPA_URL}/rest/v1/crm_data?id=eq.main&select=data`, { headers: sbHeaders, signal: controller.signal });
+    clearTimeout(timeout);
+    if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
     if (j && j[0] && j[0].data) return j[0].data;
-  } catch(e) { console.error("Load error", e); }
-  return { leads: [], projects: [], nextId: 1 };
+  } catch(e) { console.error("Load error:", e.message); }
+  return null;
 }
 
 async function dbSave(data) {
@@ -497,14 +501,17 @@ function App(){
   useEffect(()=>{
     if(!authed)return;
     setLoading(true);
-    dbLoad().then(d=>{setData(d);setLoading(false);setLastSync(new Date());});
+    dbLoad().then(d=>{
+      if(d) { setData(d); setLastSync(new Date()); }
+      setLoading(false);
+    });
   },[authed]);
 
   // Auto-refresh every 30 seconds
   useEffect(()=>{
     if(!authed)return;
     const interval=setInterval(()=>{
-      dbLoad().then(d=>{setData(d);setLastSync(new Date());});
+      dbLoad().then(d=>{ if(d){setData(d);setLastSync(new Date());} });
     },30000);
     return()=>clearInterval(interval);
   },[authed]);
@@ -520,7 +527,7 @@ function App(){
 
   const manualSync=()=>{
     setSyncing(true);
-    dbLoad().then(d=>{setData(d);setSyncing(false);setLastSync(new Date());});
+    dbLoad().then(d=>{ if(d){setData(d);setLastSync(new Date());} setSyncing(false); });
   };
 
   if(!authed) return <LoginScreen onLogin={()=>setAuthed(true)}/>;
